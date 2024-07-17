@@ -7,26 +7,23 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const supabaseUrl = 'your_supabase_url';
-const supabaseKey = 'your_supabase_key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseUrl = 'https://bmzebewzxpnheeuhuplh.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtemViZXd6eHBuaGVldWh1cGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjExNzg0MzQsImV4cCI6MjAzNjc1NDQzNH0.sWY8GLXn2-8MMzNpYYShXejONE9qYWhRuW0IivQX2GM'
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 app.use(express.json());
 
 let gameState = {
     players: {},
     enemies: [],
-    platforms: [],  // Add platforms to the game state
-    collectibles: [],  // Add collectibles to the game state
-    powerups: []  // Add power-ups to the game state
 };
 
 const saveGameState = async () => {
     const { data, error } = await supabase
         .from('game_states')
-        .upsert({ id: 1, state: gameState });
+        .upsert({ id: 1, state: gameState }, { onConflict: 'id' });
 
-    if (error) console.error(error);
+    if (error) console.error('Error saving game state:', error);
 };
 
 const loadGameState = async () => {
@@ -37,8 +34,8 @@ const loadGameState = async () => {
         .single();
 
     if (error) {
-        console.error(error);
-    } else {
+        console.error('Error loading game state:', error);
+    } else if (data) {
         gameState = data.state;
         io.emit('gameState', gameState);
     }
@@ -47,14 +44,17 @@ const loadGameState = async () => {
 // Load game state on server start
 loadGameState();
 
+// Save game state periodically
+setInterval(saveGameState, 10000);
+
 io.on('connection', (socket) => {
     console.log('a user connected', socket.id);
-    gameState.players[socket.id] = { x: 100, y: 100, score: 0 };
+    gameState.players[socket.id] = { x: 100, y: 100 };
 
     socket.emit('gameState', gameState);
 
     socket.on('playerMove', (data) => {
-        gameState.players[socket.id] = { ...gameState.players[socket.id], ...data };
+        gameState.players[socket.id] = data;
         io.emit('gameState', gameState);
         saveGameState();
     });

@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
+import playerImage from '../assets/player.png';
+import enemyImage from '../assets/enemy.png';
+import platformImage from '../assets/platform.png';
 
 const Multiplayer = () => {
     const [players, setPlayers] = useState({});
+    const canvasRef = useRef(null);
     const socket = io('http://localhost:5000');
 
     useEffect(() => {
         socket.on('gameState', (gameState) => {
             setPlayers(gameState.players);
+            drawGame(gameState);
         });
 
         return () => {
@@ -15,8 +20,31 @@ const Multiplayer = () => {
         };
     }, [socket]);
 
+    const drawGame = (gameState) => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        Object.keys(gameState.players).forEach(id => {
+            const player = new Image();
+            player.src = playerImage;
+            ctx.drawImage(player, gameState.players[id].x, gameState.players[id].y, 50, 50);
+        });
+
+        const enemy = new Image();
+        enemy.src = enemyImage;
+        ctx.drawImage(enemy, 400, 100, 50, 50);
+
+        const platform = new Image();
+        platform.src = platformImage;
+        ctx.drawImage(platform, 200, 500, 400, 20);
+        ctx.drawImage(platform, 100, 400, 200, 20);
+        ctx.drawImage(platform, 400, 300, 200, 20);
+    };
+
     const handleKeyPress = (e) => {
-        const data = { x: 100, y: 100 };
+        let data = { x: players[socket.id]?.x || 100, y: players[socket.id]?.y || 100 };
         if (e.key === 'ArrowLeft') {
             data.x -= 5;
         }
@@ -37,18 +65,11 @@ const Multiplayer = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyPress);
         };
-    }, []);
+    }, [players]);
 
     return (
         <div>
-            <h2>Multiplayer Component</h2>
-            <div>
-                {Object.keys(players).map((id) => (
-                    <div key={id}>
-                        Player {id}: {players[id].x}, {players[id].y} | Score: {players[id].score}
-                    </div>
-                ))}
-            </div>
+            <canvas ref={canvasRef} width="800" height="600"></canvas>
         </div>
     );
 };

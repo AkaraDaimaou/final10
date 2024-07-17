@@ -2,8 +2,7 @@ import pygame
 
 class Player:
     def __init__(self):
-        self.image = pygame.Surface((50, 50))
-        self.image.fill((255, 0, 0))
+        self.image = pygame.image.load('assets/player.png')
         self.rect = self.image.get_rect()
         self.rect.x = 100
         self.rect.y = 100
