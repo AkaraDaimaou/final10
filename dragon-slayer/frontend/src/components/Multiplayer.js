@@ -20,6 +20,30 @@ const Multiplayer = () => {
         };
     }, [socket]);
 
+    useEffect(() => {
+        const handleKeyPress = (e) => {
+            const player = players[socket.id] || { x: 100, y: 100 };
+            if (e.key === 'ArrowLeft') {
+                player.x -= 5;
+            }
+            if (e.key === 'ArrowRight') {
+                player.x += 5;
+            }
+            if (e.key === 'ArrowUp') {
+                player.y -= 5;
+            }
+            if (e.key === 'ArrowDown') {
+                player.y += 5;
+            }
+            socket.emit('playerMove', player);
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => {
+            window.removeEventListener('keydown', handleKeyPress);
+        };
+    }, [players, socket]);
+
     const drawGame = (gameState) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -42,30 +66,6 @@ const Multiplayer = () => {
         ctx.drawImage(platform, 100, 400, 200, 20);
         ctx.drawImage(platform, 400, 300, 200, 20);
     };
-
-    const handleKeyPress = (e) => {
-        let data = { x: players[socket.id]?.x || 100, y: players[socket.id]?.y || 100 };
-        if (e.key === 'ArrowLeft') {
-            data.x -= 5;
-        }
-        if (e.key === 'ArrowRight') {
-            data.x += 5;
-        }
-        if (e.key === 'ArrowUp') {
-            data.y -= 5;
-        }
-        if (e.key === 'ArrowDown') {
-            data.y += 5;
-        }
-        socket.emit('playerMove', data);
-    };
-
-    useEffect(() => {
-        window.addEventListener('keydown', handleKeyPress);
-        return () => {
-            window.removeEventListener('keydown', handleKeyPress);
-        };
-    }, [players]);
 
     return (
         <div>

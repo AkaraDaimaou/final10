@@ -1,19 +1,21 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TitlePage from './components/TitlePage';
 import MainMenu from './components/MainMenu';
 import Game from './components/Game';
 import Multiplayer from './components/Multiplayer';
+import Settings from './components/Settings';
 
 const App = () => {
     return (
         <Router>
-            <Switch>
-                <Route path="/" exact component={TitlePage} />
-                <Route path="/menu" component={MainMenu} />
-                <Route path="/game" component={Game} />
-                <Route path="/multiplayer" component={Multiplayer} />
-            </Switch>
+            <Routes>
+                <Route path="/" element={<TitlePage />} />
+                <Route path="/menu" element={<MainMenu />} />
+                <Route path="/game" element={<Game />} />
+                <Route path="/multiplayer" element={<Multiplayer />} />
+                <Route path="/settings" element={<Settings />} />
+            </Routes>
         </Router>
     );
 };

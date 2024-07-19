@@ -11,6 +11,9 @@ class Player:
         self.gravity = 1
         self.vel_y = 0
         self.on_ground = False
+        self.magic_attack = pygame.image.load('assets/magic_attack.png')  # Magic attack image
+        self.magic_attack_limit = 3  # Limit of magic attacks
+        self.magic_attacks_available = self.magic_attack_limit
 
     def update(self, platforms):
         keys = pygame.key.get_pressed()
@@ -34,6 +37,11 @@ class Player:
                     self.rect.bottom = platform.rect.top
                     self.vel_y = 0
                     self.on_ground = True
+
+    def use_magic_attack(self):
+        if self.magic_attacks_available > 0:
+            # Implement magic attack logic
+            self.magic_attacks_available -= 1
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
