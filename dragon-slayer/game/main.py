@@ -1,3 +1,4 @@
+# main.py
 import pygame
 import time
 from player import Player
@@ -15,10 +16,13 @@ class HealthPotion(pygame.sprite.Sprite):
         self.rect.y = y
 
 def transition_effect(screen):
-    for alpha in range(0, 300):
-        screen.fill((0, 0, 0, alpha))
+    fade_surface = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
+    
+    for alpha in range(0, 256, 5):  # Adjust the step value to control the speed of the transition
+        fade_surface.fill((0, 0, 0, alpha))
+        screen.blit(fade_surface, (0, 0))
         pygame.display.update()
-        time.sleep(0.01)
+        pygame.time.delay(30)  # Adjust the delay value to control the smoothness of the transition
 
 pygame.init()
 
@@ -57,7 +61,7 @@ while running:
         collectible.draw(screen)
     for enemy in enemies:
         enemy.update(player)
-        enemy.draw(screen)
+        screen.blit(enemy.image, enemy.rect.topleft)
     for platform in platforms:
         platform.draw(screen)
     for health_potion in health_potions:

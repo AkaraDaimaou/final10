@@ -1,17 +1,16 @@
 import pygame
 
-class Player:
-    def __init__(self):
-        self.image = pygame.image.load('assets/player.png')
-        self.rect = self.image.get_rect()
-        self.rect.x = 100
-        self.rect.y = 100
+class Player(pygame.sprite.Sprite):
+    def __init__(self, x=100, y=100):
+        super().__init__()
+        self.image = pygame.image.load('assets/player.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft=(x, y))
         self.speed = 5
         self.jump_power = 10
         self.gravity = 1
         self.vel_y = 0
         self.on_ground = False
-        self.magic_attack = pygame.image.load('assets/magic_attack.png')  # Magic attack image
+        self.magic_attack_image = pygame.image.load('assets/magic_attack.png').convert_alpha()  # Magic attack image
         self.magic_attack_limit = 3  # Limit of magic attacks
         self.magic_attacks_available = self.magic_attack_limit
 
@@ -31,17 +30,23 @@ class Player:
         self.check_collision(platforms)
 
     def check_collision(self, platforms):
+        self.on_ground = False
         for platform in platforms:
             if self.rect.colliderect(platform.rect):
                 if self.vel_y > 0:  # falling
                     self.rect.bottom = platform.rect.top
                     self.vel_y = 0
                     self.on_ground = True
+                elif self.vel_y < 0:  # jumping
+                    self.rect.top = platform.rect.bottom
+                    self.vel_y = 0
 
     def use_magic_attack(self):
         if self.magic_attacks_available > 0:
-            # Implement magic attack logic
+            # Implement magic attack logic here
             self.magic_attacks_available -= 1
+            return pygame.Rect(self.rect.centerx, self.rect.top, self.magic_attack_image.get_width(), self.magic_attack_image.get_height())
+        return None
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
