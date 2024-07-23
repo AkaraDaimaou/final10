@@ -1,14 +1,21 @@
-import React from 'react';
-import Register from './Register';  // Correct import for Register component
-import Login from './Login';        // Correct import for Login component
-import GameControls from './GameControls';
+import React, { useState } from 'react';
+import Register from './Register';
+import Login from './Login';
 
 function App() {
+    const [isRegistering, setIsRegistering] = useState(true);
+
     return (
         <div>
-            <Register />
-            <Login />
-            <GameControls />
+            <h1>Game</h1>
+            {isRegistering ? (
+                <Register switchToLogin={() => setIsRegistering(false)} />
+            ) : (
+                <Login switchToRegister={() => setIsRegistering(true)} />
+            )}
+            <button onClick={() => setIsRegistering(!isRegistering)}>
+                {isRegistering ? 'Already have an account? Log in' : 'New user? Register'}
+            </button>
         </div>
     );
 }

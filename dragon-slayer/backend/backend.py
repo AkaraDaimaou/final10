@@ -1,28 +1,22 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import pygame
-import os
-import sys
-import random
-
-import supabase
+from supabase import create_client, Client
 
 app = Flask(__name__)
 CORS(app)
 
-# Existing code...
 # Initialize Supabase client
+supabase_url = "https://bmzebewzxpnheeuhuplh.supabase.co"
+supabase_key  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtemViZXd6eHBuaGVldWh1cGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjExNzg0MzQsImV4cCI6MjAzNjc1NDQzNH0.sWY8GLXn2-8MMzNpYYShXejONE9qYWhRuW0IivQX2GM"
 
-NEXT_PUBLIC_SUPABASE_URL = "https://bmzebewzxpnheeuhuplh.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtemViZXd6eHBuaGVldWh1cGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjExNzg0MzQsImV4cCI6MjAzNjc1NDQzNH0.sWY8GLXn2-8MMzNpYYShXejONE9qYWhRuW0IivQX2GM"
-supabase_client = supabase.create_client(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)
+supabase: Client = create_client(supabase_url, supabase_key)
 
 @app.route('/register', methods=['POST'])
 def register():
     email = request.json.get('email')
     password = request.json.get('password')
     try:
-        user = supabase_client.auth.sign_up(email, password)
+        user = supabase.auth.sign_up(email, password)
         return jsonify({'status': 'success', 'user': user}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
@@ -32,14 +26,16 @@ def login():
     email = request.json.get('email')
     password = request.json.get('password')
     try:
-        user = supabase_client.auth.sign_in(email, password)
+        user = supabase.auth.sign_in(email, password)
         return jsonify({'status': 'success', 'user': user}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
 
+
+
 @app.route('/start', methods=['POST'])
 def start_game():
-    difficulty = request.json.get('difficulty', Difficulty.EASY)
+    difficulty = request.json.get('difficulty', 'easy')  # Default to 'easy'
     flappy_dragon_game.difficulty = difficulty
     flappy_dragon_game.reset_game()
     flappy_dragon_game.main()
@@ -47,10 +43,48 @@ def start_game():
 
 @app.route('/difficulty', methods=['POST'])
 def set_difficulty():
-    difficulty = request.json.get('difficulty', Difficulty.EASY)
+    difficulty = request.json.get('difficulty', 'easy')  # Default to 'easy'
     flappy_dragon_game.difficulty = difficulty
     flappy_dragon_game.reset_game()
     return jsonify({"status": "Difficulty set", "difficulty": difficulty})
 
+@app.route('/save-progress', methods=['POST'])
+def save_progress():
+    data = request.json
+    user_id = data.get('user_id')
+    level = data.get('level')
+    score = data.get('score')
+    
+    if user_id and level is not None and score is not None:
+        response = supabase.table('game_progress').insert({
+            'user_id': user_id,
+            'level': level,
+            'score': score
+        }).execute()
+        if response.status_code == 201:
+            return jsonify({'status': 'success', 'data': response.data}), 201
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to save progress'}), 500
+    else:
+        return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
+
+@app.route('/save-highscore', methods=['POST'])
+def save_highscore():
+    data = request.json
+    user_id = data.get('user_id')
+    score = data.get('score')
+    
+    if user_id and score is not None:
+        response = supabase.table('high_scores').insert({
+            'user_id': user_id,
+            'score': score
+        }).execute()
+        if response.status_code == 201:
+            return jsonify({'status': 'success', 'data': response.data}), 201
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to save high score'}), 500
+    else:
+        return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
+
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

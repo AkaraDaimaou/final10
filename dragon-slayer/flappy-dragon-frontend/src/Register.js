@@ -1,28 +1,67 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import './styles.css';
+import { supabase } from './supabaseClient';
 
-function Register() {
-    const [email, setEmail] = useState('');
+function Register({ switchToLogin }) {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [message, setMessage] = useState('');
+    const [email, setEmail] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleRegister = async () => {
+    const register = async () => {
+        if (!email || !password || !username) {
+            setError('Please fill in all fields.');
+            return;
+        }
+
+        setLoading(true);
         try {
-            const response = await axios.post('http://localhost:5000/register', { email, password });
-            setMessage('Registration successful');
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { username }
+                }
+            });
+            if (error) {
+                setError(error.message);
+            } else {
+                console.log(data);
+                // You could add a redirect or show a success message here
+            }
         } catch (error) {
-            setMessage('Registration failed: ' + error.response.data.message);
+            setError('Registration failed. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div>
             <h2>Register</h2>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-            <button onClick={handleRegister}>Register</button>
-            <p>{message}</p>
+            <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+            />
+            <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+            />
+            <button onClick={register} disabled={loading}>
+                {loading ? 'Registering...' : 'Register'}
+            </button>
+            {error && <p>{error}</p>}
+            <button onClick={switchToLogin}>Already have an account? Log in</button>
         </div>
     );
 }
