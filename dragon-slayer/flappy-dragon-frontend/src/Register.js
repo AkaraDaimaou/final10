@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { supabase } from './supabaseClient';
 
-function Register({ switchToLogin }) {
+function Register({ switchToLogin, onSignupSuccess }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const register = async () => {
+    const handleSignup = async () => {
         if (!email || !password || !username) {
             setError('Please fill in all fields.');
             return;
@@ -16,21 +15,13 @@ function Register({ switchToLogin }) {
 
         setLoading(true);
         try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { username }
-                }
-            });
-            if (error) {
-                setError(error.message);
-            } else {
-                console.log(data);
-                // You could add a redirect or show a success message here
-            }
-        } catch (error) {
-            setError('Registration failed. Please try again.');
+            // Simulate signup logic
+            console.log('Signing up with', username, email, password);
+
+            // Simulate a successful signup
+            onSignupSuccess();
+        } catch (err) {
+            setError('Signup failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -57,8 +48,8 @@ function Register({ switchToLogin }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
             />
-            <button onClick={register} disabled={loading}>
-                {loading ? 'Registering...' : 'Register'}
+            <button onClick={handleSignup} disabled={loading}>
+                {loading ? 'Registering...' : 'Sign Up'}
             </button>
             {error && <p>{error}</p>}
             <button onClick={switchToLogin}>Already have an account? Log in</button>

@@ -1,15 +1,36 @@
+# main.py
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from supabase import create_client, Client
+import threading
+import time  
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app)
 
 # Initialize Supabase client
 supabase_url = "https://bmzebewzxpnheeuhuplh.supabase.co"
-supabase_key  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtemViZXd6eHBuaGVldWh1cGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjExNzg0MzQsImV4cCI6MjAzNjc1NDQzNH0.sWY8GLXn2-8MMzNpYYShXejONE9qYWhRuW0IivQX2GM"
+supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtemViZXd6eHBuaGVldWh1cGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjExNzg0MzQsImV4cCI6MjAzNjc1NDQzNH0.sWY8GLXn2-8MMzNpYYShXejONE9qYWhRuW0IivQX2GM"
 
 supabase: Client = create_client(supabase_url, supabase_key)
+
+waiting_players = []
+
+def match_players():
+    while True:
+        if len(waiting_players) >= 2:
+            player1 = waiting_players.pop(0)
+            player2 = waiting_players.pop(0)
+            socketio.emit('match_found', {'player1': player1, 'player2': player2}, room=player1)
+            socketio.emit('match_found', {'player1': player1, 'player2': player2}, room=player2)
+        time.sleep(1)
+
+@socketio.on('register')
+def handle_register(data):
+    waiting_players.append(request.sid)
+    socketio.send(request.sid, 'waiting_for_opponent')
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -30,8 +51,6 @@ def login():
         return jsonify({'status': 'success', 'user': user}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
-
-
 
 @app.route('/start', methods=['POST'])
 def start_game():
@@ -87,4 +106,5 @@ def save_highscore():
         return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    threading.Thread(target=match_players).start()
+    socketio.run(app, debug=True)

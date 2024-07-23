@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { supabase } from './supabaseClient'; // Your Supabase client
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:5000'); // Update with your server address if different
 
 function GameControls() {
     const [difficulty, setDifficulty] = useState('EASY');
@@ -19,6 +22,19 @@ function GameControls() {
             }
         };
         fetchUserId();
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        return () => {
+            socket.off('connect');
+            socket.off('disconnect');
+        };
     }, []);
 
     const startGame = async () => {
@@ -57,6 +73,12 @@ function GameControls() {
     const handleGameEnd = () => {
         saveGameData('progress');
         saveGameData('highscore');
+    };
+
+    // Function to update game score using socket
+    const updateGame = (newScore) => {
+        setScore(newScore);
+        socket.emit('game_update', { userId, score: newScore });
     };
 
     return (
