@@ -5,11 +5,12 @@ import pygame
 from pygame.locals import *
 
 # Constants
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 499
+WINDOW_WIDTH = 900
+WINDOW_HEIGHT = 600
 FPS = 60
 PIPE_VELOCITY_X = -4
 DRAGON_FLAP_VELOCITY = -8
+DRAGON_FRAMES = 4  # Number of frames for the dragon
 
 class GameState:
     MENU = 1
@@ -32,6 +33,9 @@ class FlappyDragonGame:
         self.load_assets()
         self.game_state = GameState.MENU
         self.difficulty = Difficulty.EASY  # Default difficulty
+        self.dragon_frame = 0
+        self.dragon_frame_counter = 0
+        self.dragon_animation_speed = 5
 
     def load_assets(self):
         self.sounds = {
@@ -41,11 +45,16 @@ class FlappyDragonGame:
         }
         self.images = {
             "background": self.load_image("background.png"),
-            "dragon": self.load_image("bluebird.png"),
             "pipe": (self.load_image("pipe_up.png"), self.load_image("pipe_bottom.png")),
             "sea_level": self.load_image("base.png"),
             "score": [self.load_image(f"{i}.png") for i in range(10)],
         }
+        self.dragon_frames = [
+            self.load_image("dragon_spritesheet/frame-1.png"),
+            self.load_image("dragon_spritesheet/frame-2.png"),
+            self.load_image("dragon_spritesheet/frame-3.png"),
+            self.load_image("dragon_spritesheet/frame-4.png")
+        ]
 
     def load_image(self, image_name):
         try:
@@ -121,7 +130,10 @@ class FlappyDragonGame:
             self.window.blit(self.images["pipe"][1], (d_pipe["x"], d_pipe["y"]))
         sea_level_scaled = pygame.transform.scale(self.images["sea_level"], (WINDOW_WIDTH, self.images["sea_level"].get_height()))
         self.window.blit(sea_level_scaled, (0, WINDOW_HEIGHT - sea_level_scaled.get_height()))
-        self.window.blit(self.images["dragon"], (self.horizontal, self.vertical))
+        
+        # Animate the dragon
+        self.window.blit(self.dragon_frames[self.dragon_frame], (self.horizontal, self.vertical))
+        
         self.show_score()
         pygame.display.update()
 
@@ -169,94 +181,73 @@ class FlappyDragonGame:
                 if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                     pygame.quit()
                     sys.exit()
-                if event.type == KEYDOWN and event.key == K_SPACE:
-                    self.reset_game()
+                if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
                     self.game_state = GameState.PLAYING
+                    self.reset_game()
 
             self.frame_per_second_clock.tick(FPS)
 
-    def show_difficulty_menu(self):
-        title_font = pygame.font.SysFont("Arial", 40)
-        diff_font = pygame.font.SysFont("Arial", 28)
-        title_surf = title_font.render("Select Difficulty", True, (255, 255, 255))
-        easy_surf = diff_font.render("1. Easy", True, (255, 255, 255))
-        medium_surf = diff_font.render("2. Medium", True, (255, 255, 255))
-        hard_surf = diff_font.render("3. Hard", True, (255, 255, 255))
-
-        while True:
-            self.window.blit(pygame.transform.smoothscale(self.images["background"], self.window.get_size()), (0, 0))
-            self.window.blit(title_surf, (WINDOW_WIDTH / 2 - title_surf.get_width() / 2, WINDOW_HEIGHT / 4))
-            self.window.blit(easy_surf, (WINDOW_WIDTH / 2 - easy_surf.get_width() / 2, WINDOW_HEIGHT / 3))
-            self.window.blit(medium_surf, (WINDOW_WIDTH / 2 - medium_surf.get_width() / 2, WINDOW_HEIGHT / 2.5))
-            self.window.blit(hard_surf, (WINDOW_WIDTH / 2 - hard_surf.get_width() / 2, WINDOW_HEIGHT / 2))
-
-            pygame.display.update()
-
-            for event in pygame.event.get():
-                if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
-                    pygame.quit()
-                    sys.exit()
-                if event.type == KEYDOWN:
-                    if event.key == K_1:
-                        self.difficulty = Difficulty.EASY
-                        return
-                    elif event.key == K_2:
-                        self.difficulty = Difficulty.MEDIUM
-                        return
-                    elif event.key == K_3:
-                        self.difficulty = Difficulty.HARD
-                        return
-
-    def main(self):
-        self.show_difficulty_menu()  # Show difficulty menu before starting the game
+    def play_game(self):
         self.reset_game()
-        while True:
-            if self.game_state == GameState.MENU:
-                self.show_welcome_screen()
-            elif self.game_state == GameState.PLAYING:
-                self.handle_input()
-                self.vertical += self.dragon_velocity_y
-                self.dragon_velocity_y += 1 if self.vertical < self.ground else 0
-                self.vertical = min(self.vertical, self.ground)
+        
+        while self.game_state == GameState.PLAYING:
+            self.handle_input()
+            self.vertical += self.dragon_velocity_y
+            self.dragon_velocity_y += 1
+
+            if self.dragon_flapped:
+                self.dragon_velocity_y = DRAGON_FLAP_VELOCITY
+                self.dragon_flapped = False
+
+            self.update_pipes()
+            self.update_score()
+            self.render_game()
+            self.frame_per_second_clock.tick(FPS)
+
+            self.dragon_frame_counter += 1
+            if self.dragon_frame_counter >= self.dragon_animation_speed:
+                self.dragon_frame_counter = 0
+                self.dragon_frame = (self.dragon_frame + 1) % DRAGON_FRAMES
                 
-                for u_pipe, d_pipe in zip(self.up_pipes, self.down_pipes):
-                    u_pipe["x"] += PIPE_VELOCITY_X
-                    d_pipe["x"] += PIPE_VELOCITY_X
-
-                if self.up_pipes[0]["x"] < -self.images["pipe"][0].get_width():
-                    new_pipe = self.create_pipe()
-                    self.up_pipes.append(new_pipe[0])
-                    self.down_pipes.append(new_pipe[1])
-                    self.up_pipes.pop(0)
-                    self.down_pipes.pop(0)
-
-                if self.dragon_flapped:
-                    if self.vertical > 0:
-                        self.dragon_velocity_y = DRAGON_FLAP_VELOCITY
-                    self.dragon_flapped = False
-
-                self.update_score()
-                self.render_game()
-
-                for u_pipe, d_pipe in zip(self.up_pipes, self.down_pipes):
-                    pipe_height = self.images["pipe"][0].get_height()
-                    if (
-                        (self.vertical < u_pipe["y"] + pipe_height
-                         or self.vertical + self.images["dragon"].get_height() > d_pipe["y"])
-                        and self.horizontal + self.images["dragon"].get_width() > u_pipe["x"]
-                        and self.horizontal < u_pipe["x"] + self.images["pipe"][0].get_width()
-                        and self.horizontal + self.images["dragon"].get_width() > d_pipe["x"]
-                        and self.horizontal < d_pipe["x"] + self.images["pipe"][0].get_width()
-                        or self.vertical + self.images["dragon"].get_height() > self.ground
-                    ):
-                        self.sounds["collision"].play()
-                        self.game_state = GameState.GAME_OVER
-
-            elif self.game_state == GameState.GAME_OVER:
+            if self.check_collision():
+                self.sounds["collision"].play()
+                self.game_state = GameState.GAME_OVER
                 self.game_over_screen()
 
-            self.frame_per_second_clock.tick(FPS)
+    def update_pipes(self):
+        for u_pipe, d_pipe in zip(self.up_pipes, self.down_pipes):
+            u_pipe["x"] += PIPE_VELOCITY_X
+            d_pipe["x"] += PIPE_VELOCITY_X
+        
+        if 0 < self.up_pipes[0]["x"] < 5:
+            new_pipe = self.create_pipe()
+            self.up_pipes.append(new_pipe[0])
+            self.down_pipes.append(new_pipe[1])
+        
+        if self.up_pipes[0]["x"] < -self.images["pipe"][0].get_width():
+            self.up_pipes.pop(0)
+            self.down_pipes.pop(0)
+
+    def check_collision(self):
+        if self.vertical > self.ground - self.dragon_frames[0].get_height() or self.vertical < 0:
+            return True
+
+        for u_pipe, d_pipe in zip(self.up_pipes, self.down_pipes):
+            pipe_height = self.images["pipe"][0].get_height()
+            pipe_width = self.images["pipe"][0].get_width()
+            dragon_rect = pygame.Rect(self.horizontal, self.vertical, self.dragon_frames[0].get_width(), self.dragon_frames[0].get_height())
+            u_pipe_rect = pygame.Rect(u_pipe["x"], u_pipe["y"], pipe_width, pipe_height)
+            d_pipe_rect = pygame.Rect(d_pipe["x"], d_pipe["y"], pipe_width, pipe_height)
+            
+            if dragon_rect.colliderect(u_pipe_rect) or dragon_rect.colliderect(d_pipe_rect):
+                return True
+        
+        return False
+
+    def run(self):
+        while True:
+            self.show_welcome_screen()
+            self.play_game()
 
 if __name__ == "__main__":
-    game = FlappyDragonGame()
-    game.main()
+    FlappyDragonGame().run()
