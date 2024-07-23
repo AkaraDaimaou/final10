@@ -1,0 +1,28 @@
+/* Multiplayer.css */
+.split-screen {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+.player-screen {
+    flex: 1;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.player1 {
+    background-color: #f0f0f0;
+}
+
+.player2 {
+    background-color: #e0e0e0;
+}
+
+.game-canvas {
+    width: 100%;
+    height: 80%;
+    border: 1px solid #ccc;
+    background-color: #fff;
+}
