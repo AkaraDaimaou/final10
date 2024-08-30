@@ -33,7 +33,7 @@ class AssetManager:
     def load_image(self, image_name):
         try:
             image_path = os.path.join(self.script_dir, "images", image_name)
-            return pygame.image.load(image_path)
+            return pygame.image.load(image_path).convert_alpha()
         except Exception as e:
             print(f"Unable to load image {image_path}: {e}")
             sys.exit(1)
@@ -59,11 +59,10 @@ class AssetManager:
             "score": [self.load_image(f"{i}.png") for i in range(10)],
         }
         self.dragon_frames = [
-            self.load_image("dragon_spritesheet/frame-1.png"),
-            self.load_image("dragon_spritesheet/frame-2.png"),
-            self.load_image("dragon_spritesheet/frame-3.png"),
-            self.load_image("dragon_spritesheet/frame-4.png")
+            self.load_image(f"dragon_spritesheet/frame-{j}.png") 
+            for j in range(1, DRAGON_FRAMES + 1)
         ]
+
 
 class Player:
     def __init__(self, asset_manager):
@@ -83,20 +82,20 @@ class Player:
         else:
             self.velocity_y += 1
         self.y = min(self.y + self.velocity_y, WINDOW_HEIGHT - self.images[0].get_height())
-
-    def draw(self, window):
-        window.blit(self.images[self.frame], (self.x, self.y))
         self.frame_counter += 1
         if self.frame_counter % self.animation_speed == 0:
             self.frame = (self.frame + 1) % len(self.images)
 
+    def draw(self, window):
+        window.blit(self.images[self.frame], (self.x, self.y))
+
 class Pipe:
-    def __init__(self, asset_manager, x):
+    def __init__(self, asset_manager, x, gap=200):
         self.image_up = asset_manager.images["pipe"][0]
         self.image_down = asset_manager.images["pipe"][1]
         self.x = x
         self.y = random.randint(int(WINDOW_HEIGHT * 0.3), int(WINDOW_HEIGHT * 0.6))
-        self.gap = 200
+        self.gap = gap
 
     def update(self):
         self.x += PIPE_VELOCITY_X
@@ -116,15 +115,34 @@ class FlappyDragonGame:
         self.asset_manager = AssetManager(self.script_dir)
         self.asset_manager.load_assets()
         self.player = Player(self.asset_manager)
-        self.pipes = [Pipe(self.asset_manager, WINDOW_WIDTH + 200), Pipe(self.asset_manager, WINDOW_WIDTH + 200 + (WINDOW_WIDTH / 2))]
+        self.pipes = []
         self.game_state = GameState.MENU
         self.difficulty = Difficulty.EASY  # Default difficulty
         self.score = 0
 
     def reset_game(self):
         self.player = Player(self.asset_manager)
-        self.pipes = [Pipe(self.asset_manager, WINDOW_WIDTH + 200), Pipe(self.asset_manager, WINDOW_WIDTH + 200 + (WINDOW_WIDTH / 2))]
+        self.pipes = [
+            Pipe(self.asset_manager, WINDOW_WIDTH + 200, self.get_pipe_gap()), 
+            Pipe(self.asset_manager, WINDOW_WIDTH + 200 + (WINDOW_WIDTH / 2), self.get_pipe_gap())
+        ]
         self.score = 0
+
+    def get_pipe_gap(self):
+        if self.difficulty == Difficulty.EASY:
+            return 250
+        elif self.difficulty == Difficulty.MEDIUM:
+            return 200
+        else:
+            return 150
+
+    def get_pipe_velocity(self):
+        if self.difficulty == Difficulty.EASY:
+            return -3
+        elif self.difficulty == Difficulty.MEDIUM:
+            return -4
+        else:
+            return -5
 
     def handle_input(self):
         for event in pygame.event.get():
@@ -174,34 +192,31 @@ class FlappyDragonGame:
         while self.game_state == GameState.MENU:
             self.window.blit(pygame.transform.smoothscale(self.asset_manager.images["background"], self.window.get_size()), (0, 0))
             self.window.blit(title_surf, (WINDOW_WIDTH / 2 - title_surf.get_width() / 2, WINDOW_HEIGHT / 4))
-
-            pygame.draw.rect(self.window, (0, 0, 0), start_button)
-            pygame.draw.rect(self.window, (0, 0, 0), quit_button)
-            pygame.draw.rect(self.window, (0, 0, 0), difficulty_button)
-
+            pygame.draw.rect(self.window, (0, 128, 0), start_button)
+            pygame.draw.rect(self.window, (128, 0, 0), quit_button)
+            pygame.draw.rect(self.window, (0, 0, 128), difficulty_button)
             self.window.blit(start_surf, (start_button.x + (start_button.width - start_surf.get_width()) / 2, start_button.y + (start_button.height - start_surf.get_height()) / 2))
             self.window.blit(quit_surf, (quit_button.x + (quit_button.width - quit_surf.get_width()) / 2, quit_button.y + (quit_button.height - quit_surf.get_height()) / 2))
             self.window.blit(difficulty_surf, (difficulty_button.x + (difficulty_button.width - difficulty_surf.get_width()) / 2, difficulty_button.y + (difficulty_button.height - difficulty_surf.get_height()) / 2))
+
+            pygame.display.update()
 
             for event in pygame.event.get():
                 if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                     pygame.quit()
                     sys.exit()
                 elif event.type == MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = event.pos
-                    if start_button.collidepoint(mouse_x, mouse_y):
+                    mouse_pos = pygame.mouse.get_pos()
+                    if start_button.collidepoint(mouse_pos):
                         self.game_state = GameState.PLAYING
                         self.reset_game()
-                    elif quit_button.collidepoint(mouse_x, mouse_y):
+                    elif quit_button.collidepoint(mouse_pos):
                         pygame.quit()
                         sys.exit()
-                    elif difficulty_button.collidepoint(mouse_x, mouse_y):
+                    elif difficulty_button.collidepoint(mouse_pos):
                         self.game_state = GameState.DIFFICULTY_SELECTION
 
-            pygame.display.update()
-            self.frame_per_second_clock.tick(FPS)
-
-    def show_difficulty_menu(self):
+    def show_difficulty_selection(self):
         button_font = pygame.font.SysFont("Arial", 28)
         easy_surf = button_font.render("Easy", True, (255, 255, 255))
         medium_surf = button_font.render("Medium", True, (255, 255, 255))
@@ -213,115 +228,87 @@ class FlappyDragonGame:
 
         while self.game_state == GameState.DIFFICULTY_SELECTION:
             self.window.blit(pygame.transform.smoothscale(self.asset_manager.images["background"], self.window.get_size()), (0, 0))
-            
-            pygame.draw.rect(self.window, (0, 0, 0), easy_button)
-            pygame.draw.rect(self.window, (0, 0, 0), medium_button)
-            pygame.draw.rect(self.window, (0, 0, 0), hard_button)
-            
+            pygame.draw.rect(self.window, (0, 128, 0), easy_button)
+            pygame.draw.rect(self.window, (255, 255, 0), medium_button)
+            pygame.draw.rect(self.window, (255, 0, 0), hard_button)
             self.window.blit(easy_surf, (easy_button.x + (easy_button.width - easy_surf.get_width()) / 2, easy_button.y + (easy_button.height - easy_surf.get_height()) / 2))
             self.window.blit(medium_surf, (medium_button.x + (medium_button.width - medium_surf.get_width()) / 2, medium_button.y + (medium_button.height - medium_surf.get_height()) / 2))
             self.window.blit(hard_surf, (hard_button.x + (hard_button.width - hard_surf.get_width()) / 2, hard_button.y + (hard_button.height - hard_surf.get_height()) / 2))
 
-            for event in pygame.event.get():
-                if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = event.pos
-                    if easy_button.collidepoint(mouse_x, mouse_y):
-                        self.difficulty = Difficulty.EASY
-                        self.game_state = GameState.MENU
-                    elif medium_button.collidepoint(mouse_x, mouse_y):
-                        self.difficulty = Difficulty.MEDIUM
-                        self.game_state = GameState.MENU
-                    elif hard_button.collidepoint(mouse_x, mouse_y):
-                        self.difficulty = Difficulty.HARD
-                        self.game_state = GameState.MENU
-
             pygame.display.update()
-            self.frame_per_second_clock.tick(FPS)
-
-    def show_game_over_screen(self):
-        game_over_font = pygame.font.SysFont("Arial", 40)
-        restart_font = pygame.font.SysFont("Arial", 28)
-        game_over_surf = game_over_font.render("Game Over", True, (255, 255, 255))
-        restart_surf = restart_font.render("Restart Game", True, (255, 255, 255))
-        main_menu_surf = restart_font.render("Main Menu", True, (255, 255, 255))
-
-        restart_button = pygame.Rect(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2, 200, 50)
-        main_menu_button = pygame.Rect(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2 + 60, 200, 50)
-
-        while self.game_state == GameState.GAME_OVER:
-            self.window.blit(pygame.transform.smoothscale(self.asset_manager.images["background"], self.window.get_size()), (0, 0))
-            self.window.blit(game_over_surf, (WINDOW_WIDTH / 2 - game_over_surf.get_width() / 2, WINDOW_HEIGHT / 4))
-            
-            pygame.draw.rect(self.window, (0, 0, 0), restart_button)
-            pygame.draw.rect(self.window, (0, 0, 0), main_menu_button)
-            
-            self.window.blit(restart_surf, (restart_button.x + (restart_button.width - restart_surf.get_width()) / 2, restart_button.y + (restart_button.height - restart_surf.get_height()) / 2))
-            self.window.blit(main_menu_surf, (main_menu_button.x + (main_menu_button.width - main_menu_surf.get_width()) / 2, main_menu_button.y + (main_menu_button.height - main_menu_surf.get_height()) / 2))
 
             for event in pygame.event.get():
                 if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                     pygame.quit()
                     sys.exit()
                 elif event.type == MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = event.pos
-                    if restart_button.collidepoint(mouse_x, mouse_y):
+                    mouse_pos = pygame.mouse.get_pos()
+                    if easy_button.collidepoint(mouse_pos):
+                        self.difficulty = Difficulty.EASY
                         self.game_state = GameState.PLAYING
                         self.reset_game()
-                    elif main_menu_button.collidepoint(mouse_x, mouse_y):
-                        self.game_state = GameState.MENU
+                    elif medium_button.collidepoint(mouse_pos):
+                        self.difficulty = Difficulty.MEDIUM
+                        self.game_state = GameState.PLAYING
+                        self.reset_game()
+                    elif hard_button.collidepoint(mouse_pos):
+                        self.difficulty = Difficulty.HARD
+                        self.game_state = GameState.PLAYING
+                        self.reset_game()
 
-            pygame.display.update()
-            self.frame_per_second_clock.tick(FPS)
+    def show_game_over_screen(self):
+        font = pygame.font.SysFont("Arial", 40)
+        game_over_surf = font.render("Game Over!", True, (255, 0, 0))
+        restart_surf = font.render("Press Space to Restart", True, (255, 255, 255))
+        quit_surf = font.render("Press Esc to Quit", True, (255, 255, 255))
+        self.window.blit(game_over_surf, (WINDOW_WIDTH / 2 - game_over_surf.get_width() / 2, WINDOW_HEIGHT / 3))
+        self.window.blit(restart_surf, (WINDOW_WIDTH / 2 - restart_surf.get_width() / 2, WINDOW_HEIGHT / 2))
+        self.window.blit(quit_surf, (WINDOW_WIDTH / 2 - quit_surf.get_width() / 2, WINDOW_HEIGHT / 1.5))
+        pygame.display.update()
 
-    def main_game_loop(self):
-        self.reset_game()
+    def check_collision(self):
+        player_rect = pygame.Rect(self.player.x, self.player.y, self.player.images[0].get_width(), self.player.images[0].get_height())
+        for pipe in self.pipes:
+            pipe_up_rect = pygame.Rect(pipe.x, pipe.y - pipe.image_up.get_height(), pipe.image_up.get_width(), pipe.image_up.get_height())
+            pipe_down_rect = pygame.Rect(pipe.x, pipe.y + pipe.gap, pipe.image_down.get_width(), pipe.image_down.get_height())
+            if player_rect.colliderect(pipe_up_rect) or player_rect.colliderect(pipe_down_rect):
+                self.asset_manager.sounds["collision"].play()
+                return True
+
+        if self.player.y >= WINDOW_HEIGHT - self.asset_manager.images["sea_level"].get_height():
+            self.asset_manager.sounds["collision"].play()
+            return True
+        return False
+
+    def run_game(self):
         while True:
             if self.game_state == GameState.MENU:
                 self.show_main_menu()
             elif self.game_state == GameState.DIFFICULTY_SELECTION:
-                self.show_difficulty_menu()
+                self.show_difficulty_selection()
             elif self.game_state == GameState.PLAYING:
                 self.handle_input()
-                self.update_game_state()
+                if self.check_collision():
+                    self.game_state = GameState.GAME_OVER
+                self.player.update()
+                for pipe in self.pipes:
+                    pipe.update()
+                if self.pipes[0].x < -self.asset_manager.images["pipe"][0].get_width():
+                    self.pipes.pop(0)
+                    self.pipes.append(Pipe(self.asset_manager, WINDOW_WIDTH, self.get_pipe_gap()))
+                self.update_score()
                 self.render_game()
+                self.frame_per_second_clock.tick(FPS)
             elif self.game_state == GameState.GAME_OVER:
                 self.show_game_over_screen()
-            self.frame_per_second_clock.tick(FPS)
-
-    def update_game_state(self):
-        self.player.update()
-
-        for pipe in self.pipes:
-            pipe.update()
-
-        if 0 < self.pipes[0].x < 5:
-            self.pipes.append(Pipe(self.asset_manager, WINDOW_WIDTH + 200))
-
-        if self.pipes[0].x < -self.pipes[0].image_up.get_width():
-            self.pipes.pop(0)
-
-        self.update_score()
-
-        if self.is_collision():
-            self.asset_manager.sounds["collision"].play()
-            self.game_state = GameState.GAME_OVER
-
-    def is_collision(self):
-        if self.player.y > WINDOW_HEIGHT - 25 or self.player.y < 0:
-            return True
-
-        player_rect = pygame.Rect(self.player.x, self.player.y, self.player.images[0].get_width(), self.player.images[0].get_height())
-
-        for pipe in self.pipes:
-            pipe_rect_up = pygame.Rect(pipe.x, pipe.y - pipe.image_up.get_height(), pipe.image_up.get_width(), pipe.image_up.get_height())
-            pipe_rect_down = pygame.Rect(pipe.x, pipe.y + pipe.gap, pipe.image_down.get_width(), pipe.image_down.get_height())
-            if player_rect.colliderect(pipe_rect_up) or player_rect.colliderect(pipe_rect_down):
-                return True
-
-        return False
+                for event in pygame.event.get():
+                    if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == KEYDOWN and event.key == K_SPACE:
+                        self.game_state = GameState.MENU
 
 if __name__ == "__main__":
-    FlappyDragonGame().main_game_loop()
+    FlappyDragonGame().run_game()
+
+
